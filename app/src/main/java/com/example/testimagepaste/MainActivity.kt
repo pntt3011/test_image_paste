@@ -26,6 +26,16 @@ class MainActivity : AppCompatActivity() {
             CopyUtils.copyImageToClipboard(this, resourceId)
             Toast.makeText(this, "Copied", Toast.LENGTH_SHORT).show()
         }
+
+        val check: Button = findViewById(R.id.checker)
+        check.setOnClickListener {
+            CopyUtils.copyImageToClipboard(this, resourceId)
+            if (CheckerUtils.runCheck(this)) {
+                Toast.makeText(this, "Image", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Not image", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun onPasteImage(uri: Uri, mimeType: String) {
