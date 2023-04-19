@@ -8,6 +8,7 @@ import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.net.Uri
+import android.os.Build
 import android.os.StrictMode
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -16,6 +17,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.security.Key
 
 private const val TAG = "CopyUtils"
 private const val SHARE_IMAGES_DIRECTORY_NAME = "screenshot"
@@ -24,9 +26,19 @@ private const val JPEG_EXTENSION = ".jpg"
 private const val API_AUTHORITY_SUFFIX = ".provider"
 
 object CopyUtils {
-    fun copyImageToClipboard(context: Context, resId: Int) {
+    fun copyImageToClipboard(context: Context, resId: Int): Boolean {
         val data = retrieveImageBytes(context, resId)
-        val uri = generateUriFromData(context, data)
+        val (uri, path) = generateUriFromData(context, data)
+        uri ?: return false
+        path ?: return false
+
+
+        if (isSamsungDevice() && KeyboardUtils.usingSamsungKeyboard(context)) {
+            if (USE_UTILS_2) {
+                return CopyUtils2.addClip(context.applicationContext, path)
+            }
+            return SemClipboardUtils.addImageClip(context, path)
+        }
 
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         context.grantUriPermission(
@@ -35,10 +47,10 @@ object CopyUtils {
         )
         val clip = ClipData.newUri(context.contentResolver, "image", uri)
         clipboard.setPrimaryClip(clip)
-
-        // TODO: Check if needed
-//        applicationContext.contentResolver.delete(uri!!, null, null)
+        return true
     }
+
+    private fun isSamsungDevice(): Boolean = Build.MANUFACTURER.equals("samsung", ignoreCase = true)
 
     private fun retrieveImageBytes(context: Context, resId: Int): ByteArray {
         val d: Drawable = ContextCompat.getDrawable(context, resId)!!
@@ -48,7 +60,7 @@ object CopyUtils {
         return stream.toByteArray()
     }
 
-    private fun generateUriFromData(context: Context, data: ByteArray): Uri? {
+    private fun generateUriFromData(context: Context, data: ByteArray): Pair<Uri?, String?> {
         var fOut: FileOutputStream? = null
         try {
             val path = File(
@@ -61,7 +73,7 @@ object CopyUtils {
                 fOut = FileOutputStream(saveFile)
                 fOut.write(data)
                 fOut.flush()
-                return getContentUriFromFile(context, saveFile)
+                return Pair(getContentUriFromFile(context, saveFile), saveFile.absolutePath)
 
             } else {
                 Log.w(TAG, "Share failed -- Unable to create share image directory.")
@@ -72,7 +84,7 @@ object CopyUtils {
             fOut?.close()
         }
 
-        return null
+        return Pair(null, null)
     }
 
     private fun getDirectoryForImageCapture(context: Context): File {
@@ -89,8 +101,9 @@ object CopyUtils {
     }
 
     private fun getContentUriFromFile(context: Context, file: File): Uri {
+        val authority = context.applicationContext.packageName + API_AUTHORITY_SUFFIX // should be same as <provider android:authorities> in AndroidManifest.xml
         return FileProvider.getUriForFile(
-            context, context.applicationContext.packageName + API_AUTHORITY_SUFFIX, file
+            context, authority, file
         )
     }
 }

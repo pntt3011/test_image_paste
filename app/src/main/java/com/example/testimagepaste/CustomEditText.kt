@@ -74,4 +74,8 @@ class CustomEditText(context: Context, attributeSet: AttributeSet): AppCompatEdi
             true
         }
     }
+
+    override fun onTextChanged(text: CharSequence?, start: Int, lengthBefore: Int, lengthAfter: Int) {
+        super.onTextChanged(text, start, lengthBefore, lengthAfter)
+    }
 }
